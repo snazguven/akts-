@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.Python
+
+# Sanal ortam
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Ortam degiskenleri (gizli)
+.env
+*.key
+
+# Isletim sistemi
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# VS Code (kisisel ayarlar)
+.vscode/
+
+# Gecici dosyalar
+*.tmp
+*.log
+.tmp.driveupload/
+
+# NOT: data/ klasoru DAHIL edilecek (veri repo'da kalacak)
+iş-paketi-1-2-3-4-5/

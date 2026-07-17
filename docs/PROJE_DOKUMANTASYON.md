@@ -82,12 +82,13 @@ K_bilissel, bloom_justification
 ## Sıradaki Adımlar
 ✅ İP2 Temizlik + Master tablo  → Sudenaz   → master_clean.xlsx
 ✅ İP3 Bloom NLP               → Sudenaz   → master_bloom.xlsx
-⏳ İP4 Yapısal gruplama        → Samet     → K_profil sütunu
-⏳ İP5 Random Forest + Adaptif → Mevlüt    → adaptif_akts sütunu
-⏳ İP6 Validasyon              → Sudenaz+Mevlüt
-⏳ İP7 One-Hot + Model dataset → Ekip
+✅ İP4 Yapısal gruplama        → Samet     → K_profil sütunu
+✅ İP5 Random Forest + Adaptif → Samet     → master_akts_final.xlsx (18 Temmuz 2026)
+✅ İP6 Validasyon              → Samet     → ip6-validasyon/ (18 Temmuz 2026)
+⏳ İP7 Tam makale yazımı       → Ekip
 
 Güncel master: data/processed/master_bloom.xlsx
+Güncel nihai tablo: data/processed/master_akts_final.xlsx (bkz. docs/IP5_IP6_RAPOR.md)
 
 ## İP2 Kaynak Kodu
 """

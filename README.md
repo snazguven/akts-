@@ -209,13 +209,13 @@ Projenin tam pipeline'ı 14 aşamadan oluşur. İP1-4 bu aşamaların ilk yarıs
 | 6 | Master veri seti | Birleşik analiz tablosu | ✅ İP2/3 |
 | 7 | One-Hot Encoding | Model eğitim tablosu | ✅ Ara aşama |
 | — | Yapısal gruplama katsayısı | K_profil, K_etkinlik | ✅ İP4 |
-| 8 | Random Forest eğitimi | AKTS tahmin modeli | ⏳ İP5 |
-| 9 | Her ders için RF tahmini | rf_tahmin_akts | ⏳ İP5 |
-| 10 | Kural tabanlı düzeltme | kural_akts | ⏳ İP5 |
-| 11 | Adaptif AKTS hesabı | adaptif_akts | ⏳ İP5 |
-| 12 | Sapma + karar + gerekçe | sapma, karar, gerekçe | ⏳ İP6 |
-| 13 | Açıklanabilir AI (XAI) | özellik önem dereceleri | ⏳ İP6 |
-| 14 | Özet analizler | Konferans bulguları | ⏳ İP6 |
+| 8 | Random Forest eğitimi | AKTS tahmin modeli | ✅ İP5 (18 Tem 2026) |
+| 9 | Her ders için RF tahmini | rf_tahmin_akts | ✅ İP5 (18 Tem 2026) |
+| 10 | Kural tabanlı düzeltme | kural_akts | ✅ İP5 (18 Tem 2026) |
+| 11 | Adaptif AKTS hesabı | adaptif_akts | ✅ İP5 (18 Tem 2026) |
+| 12 | Sapma + karar + gerekçe | sapma, karar, gerekçe | ✅ İP6 (18 Tem 2026) |
+| 13 | Açıklanabilir AI (XAI) | özellik önem dereceleri | ✅ İP5 (18 Tem 2026) |
+| 14 | Özet analizler | Konferans bulguları (H1-H4 testleri) | ✅ İP6 (18 Tem 2026) |
 
 Not: Pipeline aşama numaraları ile iş paketi numaraları birebir örtüşmez. İş paketleri kişilere göre bölünmüştür; pipeline aşamaları ise mantıksal işlem adımlarıdır. Örneğin İP2 (Sudenaz), pipeline'ın 2, 3, 5 ve 6. aşamalarını kapsar.
 
@@ -1246,11 +1246,13 @@ course-credits-system/
 | 2 | Temizlik + İÖ + master tablo | Sudenaz Güven | ✅ Bitti |
 | 3 | Bloom NLP + K_bilissel | Sudenaz Güven | ✅ Bitti |
 | 4 | Yapısal gruplama (K_profil) | Samet Koca | ✅ Bitti |
-| 5 | Random Forest + Adaptif AKTS | Mevlüt Alp Kılınç | ⏳ Sıradaki |
-| 6 | Tutarsızlık + validasyon | Sudenaz + Mevlüt | ⏳ Bekliyor |
+| 5 | Random Forest + Adaptif AKTS | Samet Koca | ✅ Bitti (18 Temmuz 2026) |
+| 6 | Tutarsızlık + validasyon | Samet Koca | ✅ Bitti (18 Temmuz 2026) |
 | 7 | Tam metin | Tüm Ekip | ⏳ Bekliyor |
 | 8 | Revizyon + gönderim | Tüm Ekip | ⏳ Bekliyor |
 | 9 | Sunum | Mevlüt Alp Kılınç | ⏳ Eylül |
+
+> **Güncelleme (18 Temmuz 2026):** İP5 ve İP6, proje planı Bölüm 10'daki Görev 6 ve Görev 8 olarak tamamlandı. Ayrıntılı sonuç raporu: [`docs/IP5_IP6_RAPOR.md`](docs/IP5_IP6_RAPOR.md).
 
 ## 16.4 Kullanılan Teknolojiler
 

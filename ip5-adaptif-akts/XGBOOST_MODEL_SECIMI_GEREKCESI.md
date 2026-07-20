@@ -59,4 +59,6 @@ Gerekçe özetle:
 - Bağımsız karşılaştırma testinde XGBoost, ortalama hata (MAE) açısından da en iyi sonucu verdi.
 - Böylece hem makalenin yazdığıyla kodun yaptığı örtüşüyor, hem de bu tercih veriyle doğrulanmış oluyor.
 
-**Not:** Bu dosya yazıldığı anda `ip5_adaptif_akts.py` (üretim pipeline'ı) henüz güncellenmedi — hâlâ Random Forest kullanıyor. XGBoost'a geçiş ve eksik kalan kümeleme adımının (Bölüm 6.3 Bileşen 1) eklenmesi, ayrı bir uygulama adımı olarak yapılacak.
+**Güncelleme (20 Temmuz 2026):** `ip5_adaptif_akts.py` (üretim pipeline'ı) artık fiilen XGBoost kullanıyor — Random Forest tamamen kaldırıldı. Ayrıca yukarıdaki karşılaştırmadan sonra XGBoost, Optuna ile ayrıca ayarlandı (early stopping + hiperparametre araması, bkz. `xgboost_hiperparametre_arama.py`) ve sonuçlar daha da iyileşti: OOF MAE=0.8863, RMSE=1.5503, R²=0.1242 — Random Forest'ı artık MAE/RMSE/R²'nin **üçünde de** geçiyor (yukarıdaki tablo ayarsız XGBoost'u gösteriyor; ayrıntı: `MODEL_KARSILASTIRMA_RAPORU.md` ve `IP5_SONUC_RAPORU.md`).
+
+Hâlâ yapılmayan tek şey: Bölüm 6.3 Bileşen 1'de tanımlanan k-means/DBSCAN ders kümeleme adımı — bu henüz uygulanmadı.

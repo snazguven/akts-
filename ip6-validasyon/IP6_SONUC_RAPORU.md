@@ -28,18 +28,18 @@ En yüksek AKTS aralığına sahip ilk 10 ders:
 
 | Etkinlik | Ort. Sapma% (var) | Ort. Sapma% (yok) | Fark | Mann-Whitney p | Anlamlı mı |
 |---|---|---|---|---|---|
-| has_atolye | +44.18% | +9.18% | +35.00% | 0.0408 | Evet |
-| has_proje | +21.85% | +8.36% | +13.49% | 0.0000 | Evet |
-| has_lab | +19.96% | +8.98% | +10.98% | 0.0000 | Evet |
-| has_uygulama | +16.57% | +8.61% | +7.95% | 0.0002 | Evet |
-| has_sunum | +15.83% | +8.82% | +7.01% | 0.0175 | Evet |
-| has_sinav | +9.50% | +3.02% | +6.47% | 0.0050 | Evet |
-| has_odev | +12.83% | +8.61% | +4.22% | 0.0024 | Evet |
+| has_atolye | +17.89% | +9.20% | +8.69% | 0.3239 | Hayır |
+| has_lab | +15.97% | +9.01% | +6.96% | 0.0005 | Evet |
+| has_proje | +15.54% | +8.75% | +6.79% | 0.0000 | Evet |
+| has_sinav | +9.39% | +3.11% | +6.28% | 0.0028 | Evet |
+| has_sunum | +13.59% | +8.89% | +4.70% | 0.0820 | Hayır |
+| has_uygulama | +12.37% | +8.93% | +3.44% | 0.0001 | Evet |
+| has_odev | +11.28% | +8.82% | +2.46% | 0.0419 | Evet |
 
 ## 3. H1 — Lab/Proje Yoğun Dersler Sistematik Düşük Kredi Alıyor mu?
 
-- Lab veya proje içeren dersler (n=417): ortalama sapma = **+19.94%**
-- Diğer dersler (n=3716): ortalama sapma = **+8.16%**
+- Lab veya proje içeren dersler (n=417): ortalama sapma = **+15.39%**
+- Diğer dersler (n=3716): ortalama sapma = **+8.56%**
 - Mann-Whitney U testi (one-sided, 'greater'): p = 0.000000
 - **Sonuç: H1 DESTEKLENİYOR** (p<0.05 ve yön beklenen gibi).
 
@@ -49,25 +49,25 @@ Bloom baskın düzeyine göre ortalama sapma%:
 
 | Bloom Düzeyi | n | Ort. Sapma% | Std |
 |---|---|---|---|
-| L1 | 2810 | +8.27% | 29.91 |
-| L2 | 579 | +8.99% | 23.76 |
-| L3 | 491 | +12.34% | 30.56 |
-| L4 | 112 | +10.32% | 18.83 |
-| L5 | 34 | +16.53% | 15.98 |
-| L6 | 107 | +22.52% | 40.71 |
+| L1 | 2810 | +8.37% | 24.02 |
+| L2 | 579 | +9.10% | 21.28 |
+| L3 | 491 | +11.06% | 19.34 |
+| L4 | 112 | +11.96% | 22.75 |
+| L5 | 34 | +15.16% | 21.87 |
+| L6 | 107 | +20.10% | 38.12 |
 
-- Kruskal-Wallis testi (bloom_dominant_level grupları arası): H = 79.4335, p = 0.000000
-- Spearman korelasyonu (bloom_avg_level vs sapma_yuzde): rho = 0.1609, p = 0.000000
+- Kruskal-Wallis testi (bloom_dominant_level grupları arası): H = 50.2799, p = 0.000000
+- Spearman korelasyonu (bloom_avg_level vs sapma_yuzde): rho = 0.1375, p = 0.000000
 - **Sonuç: H4 DESTEKLENİYOR**
 
 ## 5. Aşama 4 — Mevcut Motor AKTS vs. AI-Önerilen (adaptif_akts) Karşılaştırması
 
-- Pearson korelasyonu: r = 0.6900 (p = 0.00e+00)
-- Ortalama fark (adaptif − mevcut): +0.1700 AKTS
-- Fark standart sapması: 1.1994 AKTS
-- %95 uyum sınırları (Bland-Altman tarzı): [-2.18, 2.52] AKTS
+- Pearson korelasyonu: r = 0.8367 (p = 0.00e+00)
+- Ortalama fark (adaptif − mevcut): +0.1475 AKTS
+- Fark standart sapması: 1.0403 AKTS
+- %95 uyum sınırları (Bland-Altman tarzı): [-1.89, 2.19] AKTS
 
-Kalite güvence inceleme kuyruğu: **638/4133 ders (%15.4)** 'İncelenmeli' olarak işaretlendi. En yüksek sapmalı 50 ders `inceleme_kuyrugu_ilk50.xlsx` dosyasında koordinatör incelemesi için hazırlandı — bu, projenin pratik katkı hedefinin (Bölüm 12.2) somut bir uygulamasıdır.
+Kalite güvence inceleme kuyruğu: **660/4133 ders (%16.0)** 'İncelenmeli' olarak işaretlendi. En yüksek sapmalı 50 ders `inceleme_kuyrugu_ilk50.xlsx` dosyasında koordinatör incelemesi için hazırlandı — bu, projenin pratik katkı hedefinin (Bölüm 12.2) somut bir uygulamasıdır.
 
 ## 6. Sınırlılıklar (Aşama 2c / H3 — Test Edilemeyen Kısımlar)
 

@@ -1219,7 +1219,7 @@ course-credits-system/
 ├── ip4-yapisal-gruplama/      ← Samet'in çalışma alanı
 │   ├── src/ip4_yapisal_gruplama.py
 │   └── notebooks/ip4_yapisal_gruplama.ipynb
-├── ip5-random-forest/         ← Mevlüt için hazır (boş)
+├── ip5-adaptif-akts/         ← Mevlüt için hazır (boş)
 │   ├── src/
 │   └── notebooks/
 ├── ip6-validasyon/            ← boş
@@ -1246,7 +1246,7 @@ course-credits-system/
 | 2 | Temizlik + İÖ + master tablo | Sudenaz Güven | ✅ Bitti |
 | 3 | Bloom NLP + K_bilissel | Sudenaz Güven | ✅ Bitti |
 | 4 | Yapısal gruplama (K_profil) | Samet Koca | ✅ Bitti |
-| 5 | Random Forest + Adaptif AKTS | Samet Koca | ✅ Bitti (18 Temmuz 2026) |
+| 5 | XGBoost (Gradient Boosting) + Adaptif AKTS | Samet Koca | ✅ Bitti (20 Temmuz 2026) |
 | 6 | Tutarsızlık + validasyon | Samet Koca | ✅ Bitti (18 Temmuz 2026) |
 | 7 | Tam metin | Tüm Ekip | ⏳ Bekliyor |
 | 8 | Revizyon + gönderim | Tüm Ekip | ⏳ Bekliyor |

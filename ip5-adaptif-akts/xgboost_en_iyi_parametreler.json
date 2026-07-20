@@ -1,0 +1,20 @@
+{
+  "best_params": {
+    "max_depth": 6,
+    "learning_rate": 0.04614126735633599,
+    "subsample": 0.9641437513503683,
+    "colsample_bytree": 0.6864936147132107,
+    "reg_alpha": 2.2536604744440076,
+    "reg_lambda": 1.8297509620765344,
+    "min_child_weight": 2,
+    "n_estimators": 1000
+  },
+  "oof_metrics": {
+    "MAE": 0.8863,
+    "RMSE": 1.5503,
+    "R2": 0.1242
+  },
+  "n_trials": 50,
+  "n_folds": 5,
+  "random_state": 42
+}

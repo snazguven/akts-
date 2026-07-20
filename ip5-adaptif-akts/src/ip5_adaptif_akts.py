@@ -1,64 +1,79 @@
 """
-ip5_random_forest.py
+ip5_adaptif_akts.py
 Görev 6 (Bölüm 10) — Adaptif AKTS Hesaplayan Tahmin Modeli Oluşturma.
 
+GÜNCELLEME (20 Temmuz 2026): Model, Random Forest'tan ayarlanmış XGBoost'a
+(Gradient Boosting) çevrildi. Gerekçe: proje planının resmi metodolojisi
+(Bölüm 6.3, Bileşen 3 — Dinamik Ağırlık) "Gradient Boosting modeli" talep
+ediyor; Random Forest bagging yöntemidir, boosting değildir. Bağımsız
+karşılaştırma (model_karsilastirma.py) ve ardından Optuna ile yapılan
+hiperparametre araması (xgboost_hiperparametre_arama.py) sonucunda, ayarlanmış
+XGBoost, Random Forest'ı MAE/RMSE/R²'nin ÜÇÜNDE de geçti. Ayrıntılar:
+ip5-adaptif-akts/XGBOOST_MODEL_SECIMI_GEREKCESI.md ve
+ip5-adaptif-akts/MODEL_KARSILASTIRMA_RAPORU.md.
+
+Dosya adı ve klasör adı (ip5-adaptif-akts/) tarihsel nedenlerle korunmuştur —
+proje planındaki Görev 6 / İP5 numaralandırmasıyla tutarlılık için değiştirilmedi.
+
 Pipeline Aşama 8-11 (README.md, Bölüm 14.2):
-  8  Random Forest eğitimi         -> model
-  9  RF tahmini                    -> rf_tahmin_akts
+  8  Model eğitimi (XGBoost)       -> model
+  9  Model tahmini                 -> model_tahmin_akts
   10 Kural tabanlı AKTS            -> kural_akts
   11 Adaptif AKTS                  -> adaptif_akts
 
-Kararlar (README.md Bölüm 15 önerileri uygulanmıştır):
-  Karar 1: RandomForestRegressor(n_estimators=200, random_state=42), Fakülte'ye göre
-           stratified train/test bölünmesi.
+Kararlar (README.md Bölüm 15 önerileri + 20 Temmuz güncellemesi uygulanmıştır):
+  Karar 1: XGBRegressor, Optuna ile ayarlanmış hiperparametrelerle
+           (xgboost_en_iyi_parametreler.json), early stopping ile; Fakülte'ye
+           göre stratified train/test bölünmesi.
   Karar 2: K_bilissel / K_profil / K_etkinlik modele ÖZELLİK olarak verilmez
-           (Seçenek b) — RF ve kural tabanlı bileşen birbirinden bağımsız kalır.
+           (Seçenek b) — model ve kural tabanlı bileşen birbirinden bağımsız kalır.
            akts_mevcut (AKTSKredi) da hedef sızıntısını önlemek için özellik değildir.
   Karar 3: adaptif_akts birden çok ağırlık şemasıyla hesaplanır (duyarlılık analizi),
            birincil şema 0.70/0.30'dur.
-  Karar 4: Sapma eşikleri hem mutlak hem yüzdesel olarak raporlanır.
-  Karar 5: MAE, RMSE, R² raporlanır; "iyi taklit paradoksu" out-of-fold tahminle
-           azaltılır (bkz. aşağıdaki not).
-  Karar 6: feature_importances_ ile XAI tablosu üretilir.
+  Karar 4: Sapma eşikleri yüzdesel olarak raporlanır.
+  Karar 5: MAE, RMSE, R² raporlanır; "iyi taklit paradoksu" out-of-fold tahminle azaltılır.
+  Karar 6: SHAP (shap.TreeExplainer) ile ders bazlı açıklanabilirlik (XAI) üretilir.
 
 Not (Karar 5 detayı - "iyi taklit paradoksu"):
-  Model tüm veriyle eğitilip aynı veriye tahmin yaparsa (in-sample), RF neredeyse
-  ezberleyerek AKTSKredi'yi birebir taklit eder ve hiçbir ders sapma göstermez.
-  Bunun önüne geçmek için rf_tahmin_akts, 5 katlı (Fakülte'ye göre stratified)
-  çapraz doğrulama ile OUT-OF-FOLD üretilir: her ders, o dersin bulunmadığı bir
-  fold'da eğitilen modelden tahmin alır. Model kalitesi metrikleri (MAE/RMSE/R²)
-  ayrıca ayrılmış bir train/test bölünmesi üzerinden de raporlanır.
+  Model tüm veriyle eğitilip aynı veriye tahmin yaparsa (in-sample) ezberleyerek
+  AKTSKredi'yi birebir taklit eder ve hiçbir ders sapma göstermez. Bunun önüne
+  geçmek için model_tahmin_akts, 5 katlı (Fakülte'ye göre stratified) çapraz
+  doğrulama ile OUT-OF-FOLD üretilir; her fold içinde ayrıca early-stopping için
+  ayrı bir doğrulama dilimi ayrılır.
 """
 
+import json
 import warnings
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import RandomForestRegressor
+import shap
 from sklearn.model_selection import StratifiedKFold, train_test_split
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from xgboost import XGBRegressor
 
 warnings.filterwarnings("ignore")
 
 BASE = Path(__file__).resolve().parents[2]
 MODEL_EGITIM = BASE / "data" / "processed" / "model_egitim.xlsx"
 MASTER_BLOOM = BASE / "data" / "processed" / "master_bloom.xlsx"
+BEST_PARAMS_PATH = BASE / "ip5-adaptif-akts" / "xgboost_en_iyi_parametreler.json"
 OUT_DIR = BASE / "data" / "processed"
-REPORT_PATH = BASE / "ip5-random-forest" / "IP5_SONUC_RAPORU.md"
+REPORT_PATH = BASE / "ip5-adaptif-akts" / "IP5_SONUC_RAPORU.md"
 
 RANDOM_STATE = 42
-N_ESTIMATORS = 200
 N_FOLDS = 5
+EARLY_STOPPING_ROUNDS = 30
 
-# Karar 2b: kural tabanlı katsayılar ve hedef değişken RF özelliği DEĞİLDİR.
+# Karar 2b: kural tabanlı katsayılar ve hedef değişken model özelliği DEĞİLDİR.
 EXCLUDE_FROM_FEATURES = ["Katalogid", "DersAdi", "AKTSKredi", "K_bilissel"]
 
-# Karar 3: duyarlılık analizi için denenecek ağırlık şemaları (rf_agirlik, kural_agirlik)
+# Karar 3: duyarlılık analizi için denenecek ağırlık şemaları (model_agirlik, kural_agirlik)
 WEIGHT_SCHEMES = [(0.50, 0.50), (0.60, 0.40), (0.70, 0.30), (0.80, 0.20)]
 PRIMARY_WEIGHTS = (0.70, 0.30)
 
-# Karar 4: sapma eşikleri
+
 def karar_ver(sapma_pct: float) -> str:
     a = abs(sapma_pct)
     if a < 10:
@@ -68,9 +83,36 @@ def karar_ver(sapma_pct: float) -> str:
     return "İncelenmeli"
 
 
+def load_best_params() -> dict:
+    """xgboost_hiperparametre_arama.py çıktısını yükler (Optuna ile ayarlanmış parametreler)."""
+    data = json.loads(BEST_PARAMS_PATH.read_text(encoding="utf-8"))
+    return data["best_params"]
+
+
+def make_model(params: dict) -> XGBRegressor:
+    return XGBRegressor(
+        **params,
+        random_state=RANDOM_STATE,
+        n_jobs=-1,
+        verbosity=0,
+        early_stopping_rounds=EARLY_STOPPING_ROUNDS,
+        eval_metric="rmse",
+    )
+
+
+def fit_with_early_stopping(params, X_train_full, y_train_full, strat_train_full, random_state=RANDOM_STATE):
+    """Eğitim setinden early-stopping için ayrı bir doğrulama dilimi ayırıp modeli eğitir."""
+    X_tr, X_val, y_tr, y_val = train_test_split(
+        X_train_full, y_train_full, test_size=0.15, random_state=random_state, stratify=strat_train_full
+    )
+    model = make_model(params)
+    model.fit(X_tr, y_tr, eval_set=[(X_val, y_val)], verbose=False)
+    return model
+
+
 def main():
     print("=" * 60)
-    print("İP5 — RANDOM FOREST + ADAPTİF AKTS")
+    print("İP5 — XGBOOST (GRADIENT BOOSTING) + ADAPTİF AKTS")
     print("=" * 60)
 
     print(f"\nYükleniyor: {MODEL_EGITIM.name}")
@@ -81,12 +123,14 @@ def main():
     bloom_df = pd.read_excel(MASTER_BLOOM, dtype={"Katalogid": str})
     print(f"  {bloom_df.shape[0]} satır, {bloom_df.shape[1]} sütun")
 
-    # ── Aşama 8: Random Forest eğitimi ──────────────────────────────────────
+    best_params = load_best_params()
+    print(f"\nAyarlanmış XGBoost parametreleri ({BEST_PARAMS_PATH.name}'ten): {best_params}")
+
+    # ── Aşama 8: Model eğitimi ──────────────────────────────────────────────
     feature_cols = [c for c in model_df.columns if c not in EXCLUDE_FROM_FEATURES]
     X = model_df[feature_cols].copy()
     y = model_df["AKTSKredi"].copy()
 
-    # Stratified anahtar: Fakülte one-hot sütunlarından tek bir etiket türet
     fakulte_cols = [c for c in feature_cols if c.startswith("Fakulte_")]
     strat_labels = model_df[fakulte_cols].idxmax(axis=1)
 
@@ -97,8 +141,7 @@ def main():
     X_train, X_test, y_train, y_test, strat_train, strat_test = train_test_split(
         X, y, strat_labels, test_size=0.20, random_state=RANDOM_STATE, stratify=strat_labels
     )
-    eval_model = RandomForestRegressor(n_estimators=N_ESTIMATORS, random_state=RANDOM_STATE, n_jobs=-1)
-    eval_model.fit(X_train, y_train)
+    eval_model = fit_with_early_stopping(best_params, X_train, y_train, strat_train)
     y_pred_test = eval_model.predict(X_test)
 
     mae = mean_absolute_error(y_test, y_pred_test)
@@ -110,44 +153,44 @@ def main():
     print(f"  RMSE : {rmse:.4f} AKTS")
     print(f"  R²   : {r2:.4f}")
 
-    # ── Aşama 9: RF tahmini — out-of-fold (tüm veri için, ezberleme riski olmadan) ──
+    # ── Aşama 9: Model tahmini — out-of-fold (tüm veri için, ezberleme riski olmadan) ──
     print(f"\n{N_FOLDS} katlı stratified (Fakülte) çapraz doğrulama ile out-of-fold tahmin üretiliyor...")
     skf = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=RANDOM_STATE)
-    rf_oof = np.zeros(len(X))
-    fold_importances = []
+    model_oof = np.zeros(len(X))
 
     for fold_i, (train_idx, test_idx) in enumerate(skf.split(X, strat_labels), start=1):
-        fold_model = RandomForestRegressor(n_estimators=N_ESTIMATORS, random_state=RANDOM_STATE, n_jobs=-1)
-        fold_model.fit(X.iloc[train_idx], y.iloc[train_idx])
-        rf_oof[test_idx] = fold_model.predict(X.iloc[test_idx])
-        fold_importances.append(fold_model.feature_importances_)
-        print(f"  Fold {fold_i}/{N_FOLDS} tamamlandı ({len(test_idx)} ders tahmin edildi)")
+        fold_model = fit_with_early_stopping(
+            best_params, X.iloc[train_idx], y.iloc[train_idx], strat_labels.iloc[train_idx]
+        )
+        model_oof[test_idx] = fold_model.predict(X.iloc[test_idx])
+        print(f"  Fold {fold_i}/{N_FOLDS} tamamlandı ({len(test_idx)} ders tahmin edildi, "
+              f"best_iteration={fold_model.best_iteration})")
 
-    model_df["rf_tahmin_akts"] = rf_oof.round(4)
+    model_df["model_tahmin_akts"] = model_oof.round(4)
 
-    oof_mae = mean_absolute_error(y, rf_oof)
-    oof_rmse = np.sqrt(mean_squared_error(y, rf_oof))
-    oof_r2 = r2_score(y, rf_oof)
+    oof_mae = mean_absolute_error(y, model_oof)
+    oof_rmse = np.sqrt(mean_squared_error(y, model_oof))
+    oof_r2 = r2_score(y, model_oof)
     print("\n── Model Kalitesi (tüm veri, out-of-fold) ────────────────")
     print(f"  MAE  : {oof_mae:.4f} AKTS")
     print(f"  RMSE : {oof_rmse:.4f} AKTS")
     print(f"  R²   : {oof_r2:.4f}")
 
-    # ── Karar 6 — XAI: feature importance (tam veriyle eğitilmiş final model üzerinden) ──
-    final_model = RandomForestRegressor(n_estimators=N_ESTIMATORS, random_state=RANDOM_STATE, n_jobs=-1)
-    final_model.fit(X, y)
+    # ── Karar 6 — XAI: SHAP (tam veriyle, early-stopping validasyonuyla eğitilmiş final model) ──
+    final_model = fit_with_early_stopping(best_params, X, y, strat_labels)
+    explainer = shap.TreeExplainer(final_model)
+    shap_values = explainer.shap_values(X)
+    mean_abs_shap = np.abs(shap_values).mean(axis=0)
     importance_df = pd.DataFrame({
         "ozellik": feature_cols,
-        "onem_derecesi": final_model.feature_importances_,
-    }).sort_values("onem_derecesi", ascending=False).reset_index(drop=True)
+        "ortalama_mutlak_shap_katkisi": mean_abs_shap,
+    }).sort_values("ortalama_mutlak_shap_katkisi", ascending=False).reset_index(drop=True)
 
-    print("\n── En Önemli 10 Özellik (feature_importances_) ───────────")
+    print("\n── En Önemli 10 Özellik (SHAP ortalama mutlak katkı) ─────")
     for _, row in importance_df.head(10).iterrows():
-        print(f"  {row['ozellik']:<28}: {row['onem_derecesi']:.4f}")
+        print(f"  {row['ozellik']:<28}: {row['ortalama_mutlak_shap_katkisi']:.4f}")
 
     # ── Aşama 10: Kural tabanlı AKTS ─────────────────────────────────────────
-    # model_df zaten K_bilissel içeriyor (model_egitim.xlsx'ten) — merge çakışmasını
-    # önlemek için bloom_df'ten sadece K_profil/K_etkinlik (İP4 çıktısı) alınır.
     k_cols = ["Katalogid", "K_profil", "K_etkinlik", "Fakulte", "alan_grubu"]
     merged = model_df.merge(bloom_df[k_cols], on="Katalogid", how="left")
 
@@ -156,9 +199,9 @@ def main():
     ).round(4)
 
     # ── Aşama 11: Adaptif AKTS (Karar 3 — duyarlılık analizi) ───────────────
-    for w_rf, w_kural in WEIGHT_SCHEMES:
-        col = f"adaptif_akts_{int(w_rf*100)}_{int(w_kural*100)}"
-        merged[col] = (w_rf * merged["rf_tahmin_akts"] + w_kural * merged["kural_akts"]).round(4)
+    for w_model, w_kural in WEIGHT_SCHEMES:
+        col = f"adaptif_akts_{int(w_model*100)}_{int(w_kural*100)}"
+        merged[col] = (w_model * merged["model_tahmin_akts"] + w_kural * merged["kural_akts"]).round(4)
 
     primary_col = f"adaptif_akts_{int(PRIMARY_WEIGHTS[0]*100)}_{int(PRIMARY_WEIGHTS[1]*100)}"
     merged["adaptif_akts"] = merged[primary_col]
@@ -169,7 +212,7 @@ def main():
     merged["karar"] = merged["sapma_yuzde"].apply(karar_ver)
     merged["gerekce"] = merged.apply(
         lambda r: (
-            f"AKTS_mevcut={r['AKTSKredi']:.1f} | rf_tahmin={r['rf_tahmin_akts']:.2f} | "
+            f"AKTS_mevcut={r['AKTSKredi']:.1f} | model_tahmin={r['model_tahmin_akts']:.2f} | "
             f"kural_akts={r['kural_akts']:.2f} (K_bilissel={r['K_bilissel']:.2f}, "
             f"K_profil={r['K_profil']:.2f}, K_etkinlik={r['K_etkinlik']:.2f}) | "
             f"adaptif={r['adaptif_akts']:.2f} | sapma={r['sapma_yuzde']:+.1f}%"
@@ -184,23 +227,23 @@ def main():
 
     print("\n── Duyarlılık Analizi: Ağırlık Şemalarına Göre Ortalama |Sapma%| ──")
     sensitivity_rows = []
-    for w_rf, w_kural in WEIGHT_SCHEMES:
-        col = f"adaptif_akts_{int(w_rf*100)}_{int(w_kural*100)}"
+    for w_model, w_kural in WEIGHT_SCHEMES:
+        col = f"adaptif_akts_{int(w_model*100)}_{int(w_kural*100)}"
         sapma_pct = (merged[col] - merged["AKTSKredi"]) / merged["AKTSKredi"] * 100
         mean_abs_pct = sapma_pct.abs().mean()
         incelenmeli_pct = (sapma_pct.abs() >= 30).mean() * 100
         sensitivity_rows.append({
-            "agirlik": f"{w_rf:.2f} RF / {w_kural:.2f} Kural",
+            "agirlik": f"{w_model:.2f} Model / {w_kural:.2f} Kural",
             "ort_mutlak_sapma_yuzde": round(mean_abs_pct, 2),
             "incelenmeli_oran_yuzde": round(incelenmeli_pct, 2),
         })
-        print(f"  {w_rf:.2f}/{w_kural:.2f}  -> ort |sapma%|={mean_abs_pct:.2f}  incelenmeli oranı={incelenmeli_pct:.2f}%")
+        print(f"  {w_model:.2f}/{w_kural:.2f}  -> ort |sapma%|={mean_abs_pct:.2f}  incelenmeli oranı={incelenmeli_pct:.2f}%")
     sensitivity_df = pd.DataFrame(sensitivity_rows)
 
     # ── Kaydet ────────────────────────────────────────────────────────────────
     out_cols = [
         "Katalogid", "DersAdi", "Fakulte", "alan_grubu", "AKTSKredi",
-        "rf_tahmin_akts", "kural_akts",
+        "model_tahmin_akts", "kural_akts",
     ] + [f"adaptif_akts_{int(w[0]*100)}_{int(w[1]*100)}" for w in WEIGHT_SCHEMES] + [
         "adaptif_akts", "sapma", "sapma_yuzde", "karar", "gerekce",
         "K_bilissel", "K_profil", "K_etkinlik",
@@ -208,40 +251,49 @@ def main():
     final_df = merged[out_cols].copy()
     final_df.to_excel(OUT_DIR / "master_akts_final.xlsx", index=False)
     final_df.to_csv(OUT_DIR / "master_akts_final.csv", index=False, encoding="utf-8-sig")
-    importance_df.to_excel(BASE / "ip5-random-forest" / "feature_importance.xlsx", index=False)
-    sensitivity_df.to_excel(BASE / "ip5-random-forest" / "duyarlilik_analizi.xlsx", index=False)
+    importance_df.to_excel(BASE / "ip5-adaptif-akts" / "feature_importance.xlsx", index=False)
+    sensitivity_df.to_excel(BASE / "ip5-adaptif-akts" / "duyarlilik_analizi.xlsx", index=False)
 
     print(f"\nKaydedildi: {OUT_DIR / 'master_akts_final.xlsx'}")
-    print(f"Kaydedildi: {BASE / 'ip5-random-forest' / 'feature_importance.xlsx'}")
-    print(f"Kaydedildi: {BASE / 'ip5-random-forest' / 'duyarlilik_analizi.xlsx'}")
+    print(f"Kaydedildi: {BASE / 'ip5-adaptif-akts' / 'feature_importance.xlsx'}")
+    print(f"Kaydedildi: {BASE / 'ip5-adaptif-akts' / 'duyarlilik_analizi.xlsx'}")
 
     # ── Rapor dosyası ─────────────────────────────────────────────────────────
     write_report(
         final_df, importance_df, sensitivity_df,
-        mae, rmse, r2, oof_mae, oof_rmse, oof_r2, feature_cols,
+        mae, rmse, r2, oof_mae, oof_rmse, oof_r2, feature_cols, best_params,
     )
     print(f"Kaydedildi: {REPORT_PATH}")
 
     return final_df
 
 
-def write_report(final_df, importance_df, sensitivity_df, mae, rmse, r2, oof_mae, oof_rmse, oof_r2, feature_cols):
+def write_report(final_df, importance_df, sensitivity_df, mae, rmse, r2, oof_mae, oof_rmse, oof_r2, feature_cols, best_params):
     karar_dist = final_df["karar"].value_counts()
     fakulte_sapma = (
         final_df.groupby("Fakulte")["sapma_yuzde"].mean().round(2).sort_values(ascending=False)
     )
 
     lines = []
-    lines.append("# İP5 Sonuç Raporu — Random Forest + Adaptif AKTS")
+    lines.append("# İP5 Sonuç Raporu — XGBoost (Gradient Boosting) + Adaptif AKTS")
     lines.append("")
     lines.append("**Görev (Bölüm 10, Görev 6):** Adaptif AKTS Hesaplayan Tahmin Modeli Oluşturma")
     lines.append("**Sorumlu:** Samet Koca | **Durum:** Tamamlandı")
     lines.append("")
+    lines.append(
+        "**20 Temmuz 2026 güncellemesi:** Model, Random Forest'tan ayarlanmış XGBoost'a çevrildi "
+        "(bkz. `XGBOOST_MODEL_SECIMI_GEREKCESI.md`) — proje planının resmi metodolojisi "
+        "(Bölüm 6.3) Gradient Boosting talep ediyor ve Optuna ile ayarlanmış XGBoost, "
+        "MAE/RMSE/R²'nin üçünde de Random Forest'ı geçti."
+    )
+    lines.append("")
     lines.append("## 1. Model Kurulumu")
-    lines.append(f"- Algoritma: RandomForestRegressor(n_estimators={N_ESTIMATORS}, random_state={RANDOM_STATE})")
+    lines.append(f"- Algoritma: XGBRegressor (Optuna ile ayarlanmış hiperparametreler)")
+    lines.append(f"- Parametreler: {best_params}")
+    lines.append(f"- Early stopping: {EARLY_STOPPING_ROUNDS} round (her fold içinde ayrı doğrulama dilimiyle)")
     lines.append(f"- Özellik sayısı: {len(feature_cols)} (K_bilissel, akts_mevcut hariç — hedef sızıntısı önlendi)")
     lines.append("- Train/test bölünmesi: Fakülte'ye göre stratified, %80/%20")
-    lines.append(f"- rf_tahmin_akts: {N_FOLDS} katlı stratified (Fakülte) çapraz doğrulama, out-of-fold")
+    lines.append(f"- model_tahmin_akts: {N_FOLDS} katlı stratified (Fakülte) çapraz doğrulama, out-of-fold")
     lines.append("")
     lines.append("## 2. Model Kalitesi")
     lines.append("")
@@ -252,19 +304,19 @@ def write_report(final_df, importance_df, sensitivity_df, mae, rmse, r2, oof_mae
     lines.append(f"| R²   | {r2:.4f} | {oof_r2:.4f} |")
     lines.append("")
     lines.append(
-        "Not: Out-of-fold R² değeri, tüm veriyle eğitilip aynı veriye tahmin yapan bir modelin "
-        "R²'sinden düşük çıkar — bu beklenen ve istenen bir durumdur (\"iyi taklit paradoksu\"), "
-        "çünkü amaç mevcut AKTS'yi ezberlemek değil, ondan anlamlı sapmaları yakalamaktır."
+        "Karşılaştırma için önceki modellerin out-of-fold sonuçları (aynı veri/fold düzeni): "
+        "Random Forest MAE=0.9285 RMSE=1.7504 R²=-0.1164; ayarsız XGBoost MAE=0.8907 RMSE=1.8396 "
+        "R²=-0.2330. Ayrıntılar: `MODEL_KARSILASTIRMA_RAPORU.md`."
     )
     lines.append("")
-    lines.append("## 3. Özellik Önem Dereceleri (XAI) — İlk 10")
+    lines.append("## 3. Özellik Önem Dereceleri (SHAP) — İlk 10")
     lines.append("")
-    lines.append("| Özellik | Önem Derecesi |")
+    lines.append("| Özellik | Ort. Mutlak SHAP Katkısı |")
     lines.append("|---|---|")
     for _, row in importance_df.head(10).iterrows():
-        lines.append(f"| {row['ozellik']} | {row['onem_derecesi']:.4f} |")
+        lines.append(f"| {row['ozellik']} | {row['ortalama_mutlak_shap_katkisi']:.4f} |")
     lines.append("")
-    lines.append("## 4. Karar Dağılımı (0.70 RF / 0.30 Kural, birincil ağırlık)")
+    lines.append("## 4. Karar Dağılımı (0.70 Model / 0.30 Kural, birincil ağırlık)")
     lines.append("")
     lines.append("| Karar | Ders Sayısı | Oran |")
     lines.append("|---|---|---|")
@@ -273,7 +325,7 @@ def write_report(final_df, importance_df, sensitivity_df, mae, rmse, r2, oof_mae
     lines.append("")
     lines.append("## 5. Duyarlılık Analizi — Ağırlık Şemaları (Karar 3)")
     lines.append("")
-    lines.append("| Ağırlık (RF/Kural) | Ort. Mutlak Sapma % | İncelenmeli Oranı % |")
+    lines.append("| Ağırlık (Model/Kural) | Ort. Mutlak Sapma % | İncelenmeli Oranı % |")
     lines.append("|---|---|---|")
     for _, row in sensitivity_df.iterrows():
         lines.append(f"| {row['agirlik']} | {row['ort_mutlak_sapma_yuzde']} | {row['incelenmeli_oran_yuzde']} |")
@@ -292,10 +344,10 @@ def write_report(final_df, importance_df, sensitivity_df, mae, rmse, r2, oof_mae
     )
     lines.append("")
     lines.append("## 7. Çıktı Dosyaları")
-    lines.append("- `data/processed/master_akts_final.xlsx` / `.csv` — her ders için rf_tahmin_akts, "
+    lines.append("- `data/processed/master_akts_final.xlsx` / `.csv` — her ders için model_tahmin_akts, "
                   "kural_akts, adaptif_akts (4 ağırlık şeması), sapma, karar, gerekçe")
-    lines.append("- `ip5-random-forest/feature_importance.xlsx`")
-    lines.append("- `ip5-random-forest/duyarlilik_analizi.xlsx`")
+    lines.append("- `ip5-adaptif-akts/feature_importance.xlsx` (SHAP tabanlı)")
+    lines.append("- `ip5-adaptif-akts/duyarlilik_analizi.xlsx`")
 
     REPORT_PATH.write_text("\n".join(lines), encoding="utf-8")
 
